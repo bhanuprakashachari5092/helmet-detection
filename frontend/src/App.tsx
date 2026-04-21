@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
-import { ShieldCheck, ShieldAlert, Camera, Activity, UploadCloud, Video, Bike, Shield, Zap, Maximize } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Camera, Activity, UploadCloud, Video, Bike, Shield, Zap, Maximize, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
@@ -135,6 +135,7 @@ function App() {
   const uploadVideoRef = useRef<HTMLVideoElement>(null);
   const [isVideoUpload, setIsVideoUpload] = useState(false);
   const [uploadedVideoURL, setUploadedVideoURL] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
 
   useEffect(() => {
     socket.on('connect', () => setIsConnected(true));
@@ -169,11 +170,13 @@ function App() {
     };
   }, [activeTab]);
 
-  // Activate Laptop WebCam
-  const startCamera = async () => {
+  // Activate Laptop/Mobile WebCam
+  const startCamera = async (currentFacingMode = facingMode) => {
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
-        const localStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const localStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: currentFacingMode } 
+        });
         if (videoRef.current) {
           videoRef.current.srcObject = localStream;
           setIsCameraActive(true);
@@ -183,6 +186,15 @@ function App() {
         alert("Please permit camera access for Live Surveillance.");
       }
     }
+  };
+
+  const flipCamera = () => {
+    stopCamera();
+    const newMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(newMode);
+    setTimeout(() => {
+       startCamera(newMode);
+    }, 200);
   };
 
   const stopCamera = () => {
@@ -382,7 +394,7 @@ function App() {
                   {(!isCameraActive && !stream) && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-text-muted gap-4">
                       <Camera size={48} className="opacity-20 text-primary" />
-                      <button onClick={startCamera} className="mt-4 px-6 py-2 bg-[#3b82f6]/20 border border-[#3b82f6] text-[#3b82f6] rounded-xl font-bold animate-pulse hover:bg-[#3b82f6]/40">
+                      <button onClick={() => startCamera()} className="mt-4 px-6 py-2 bg-[#3b82f6]/20 border border-[#3b82f6] text-[#3b82f6] rounded-xl font-bold animate-pulse hover:bg-[#3b82f6]/40">
                         Initialize WebCam Access
                       </button>
                     </div>
@@ -390,7 +402,10 @@ function App() {
 
                   {isCameraActive && (
                      <div className="absolute top-4 right-4 flex gap-2">
-                       <button onClick={() => toggleFullScreen('video-container')} className="bg-black/50 text-white border border-white/20 p-2 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm">
+                       <button onClick={flipCamera} className="bg-black/50 text-white border border-white/20 p-2 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm" title="Flip Camera">
+                         <RefreshCw size={18} />
+                       </button>
+                       <button onClick={() => toggleFullScreen('video-container')} className="bg-black/50 text-white border border-white/20 p-2 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm" title="Full Screen">
                          <Maximize size={18} />
                        </button>
                        <button onClick={stopCamera} className="bg-danger/20 text-danger border border-danger/50 px-3 py-1 rounded-xl text-xs font-bold backdrop-blur-sm flex items-center">
