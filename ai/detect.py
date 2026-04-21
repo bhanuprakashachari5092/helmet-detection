@@ -39,23 +39,30 @@ def disconnect():
 
 # Attempt to connect with retries
 def start_socket():
+    print("🚀 Neural Engine: Initializing AI Detection Pipeline...")
     while not sio.connected:
         try:
-            print(f"Attempting to connect to {SERVER_URL}...")
+            print(f"📡 Attempting to bridge to server at {SERVER_URL}...")
+            # Verify if server is reachable via HTTP first
+            try:
+                requests.get(SERVER_URL, timeout=5)
+                print("✅ Server is reachable via HTTP")
+            except:
+                print("⚠️ Server not reachable via HTTP yet, but trying Socket.io...")
+                
             sio.connect(SERVER_URL, wait_timeout=10)
+            print("💎 Neural Link Established: Helmet Detection Active")
             break
         except Exception as e:
-            print(f"Connection error: {e}. Retrying in 5s...")
-            time.sleep(5)
+            print(f"❌ Connection error: {e}. Retrying in 3s...")
+            time.sleep(3)
 
 @sio.on('process_this_frame')
 def on_process_frame(data):
-    print("AI: Received frame for processing...")
     """
-    Called when frontend sends a frame either from WebCam or Uploads
+    Core AI Processing Engine
     """
-    global last_detection_time
-    
+    print(f"🧠 AI Analysis: Frame received at {time.strftime('%H:%M:%S')} - Processing with YOLOv8 & OpenCV...")
     try:
         # data may start with 'data:image/jpeg;base64,' -- if so, strip it
         if "base64," in data:

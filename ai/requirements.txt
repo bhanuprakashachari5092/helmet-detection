@@ -1,6 +1,5 @@
 ultralytics
-opencv-python-headless
+opencv-python
 numpy
 python-socketio[client]
 requests
-python-dotenv
