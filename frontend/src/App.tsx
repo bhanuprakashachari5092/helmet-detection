@@ -276,10 +276,16 @@ function App() {
        const reader = new FileReader();
        reader.onload = (event) => {
            const base64Data = event.target?.result as string;
-           socket.emit('frontend_frame', base64Data);
+           
+           // Emit multiple times during the loader phase to ensure AI picks it up
+           const intervalId = setInterval(() => {
+              socket.emit('frontend_frame', base64Data);
+           }, 500);
+
            setTimeout(() => {
+              clearInterval(intervalId);
               setIsUploading(false);
-           }, 2500); 
+           }, 3000); 
        };
        reader.readAsDataURL(file);
     }

@@ -19,19 +19,34 @@ model = YOLO('yolov8n.pt')
 # Load OpenCV Number Plate Cascade
 plate_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_russian_plate_number.xml')
 
-# Initialize Socket.io client
-sio = socketio.Client()
+# Initialize Socket.io client with reconnection logic
+sio = socketio.Client(reconnection=True, reconnection_attempts=0, reconnection_delay=5)
 
 last_detection_time = 0
 cooldown = 1.0 # 1 second cooldown between logging detections
 
 @sio.event
 def connect():
-    print("Connected to backend server - Awaiting frames from Frontend System")
+    print(f"✅ Connected to backend server: {SERVER_URL}")
+
+@sio.event
+def connect_error(data):
+    print(f"❌ Connection failed: {data}")
 
 @sio.event
 def disconnect():
-    print("Disconnected from backend server")
+    print("🔌 Disconnected from server")
+
+# Attempt to connect with retries
+def start_socket():
+    while not sio.connected:
+        try:
+            print(f"Attempting to connect to {SERVER_URL}...")
+            sio.connect(SERVER_URL, wait_timeout=10)
+            break
+        except Exception as e:
+            print(f"Connection error: {e}. Retrying in 5s...")
+            time.sleep(5)
 
 @sio.on('process_this_frame')
 def on_process_frame(data):
@@ -124,12 +139,6 @@ def on_process_frame(data):
     except Exception as e:
         print(f"Error processing frame: {e}")
 
-def start_ai_service():
-    try:
-        sio.connect(SERVER_URL)
-        sio.wait()
-    except Exception as e:
-        print("Failed to connect to server:", e)
-
 if __name__ == "__main__":
-    start_ai_service()
+    start_socket()
+    sio.wait()
