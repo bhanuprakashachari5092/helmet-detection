@@ -53,15 +53,24 @@ def on_process_frame(data):
         if frame is None:
             return
 
-        # Run YOLO Inference
-        results = model(frame, stream=False, verbose=False) # stream=False for single frames
+        # 1. OpenCV Image Preprocessing (Contrast Enhancement using CLAHE)
+        # This makes the detection more robust in different lighting conditions
+        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+        l_channel, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        cl = clahe.apply(l_channel)
+        limg = cv2.merge((cl, a, b))
+        preprocessed_frame = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        
+        # 2. Run YOLO Inference on the preprocessed frame
+        results = model(preprocessed_frame, stream=False, verbose=False) # stream=False for single frames
         
         current_status = "No Helmet" # Demo default
         highest_conf = 0.0
         detected = False
         
         # Number Plate Detection using OpenCV Haar Cascades
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray_frame = cv2.cvtColor(preprocessed_frame, cv2.COLOR_BGR2GRAY)
         plates = plate_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=4, minSize=(30, 30))
         for (px, py, pw, ph) in plates:
             cv2.rectangle(frame, (px, py), (px + pw, py + ph), (255, 0, 0), 3) # Blue box for plates
