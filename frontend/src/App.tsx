@@ -132,6 +132,9 @@ function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const uploadVideoRef = useRef<HTMLVideoElement>(null);
+  const [isVideoUpload, setIsVideoUpload] = useState(false);
+  const [uploadedVideoURL, setUploadedVideoURL] = useState<string | null>(null);
 
   useEffect(() => {
     socket.on('connect', () => setIsConnected(true));
@@ -214,6 +217,28 @@ function App() {
     return () => clearInterval(intervalId);
   }, [activeTab, isCameraActive]);
 
+  // Loop to emit frames for Uploaded Video
+  useEffect(() => {
+    let intervalId: any;
+    if (activeTab === 'upload' && isVideoUpload && uploadedVideoURL && uploadVideoRef.current && canvasRef.current && !isUploading) {
+      intervalId = setInterval(() => {
+        const video = uploadVideoRef.current;
+        const canvas = canvasRef.current;
+        if (video && canvas && video.readyState >= 2 && !video.paused && !video.ended) {
+          const context = canvas.getContext('2d');
+          if (context) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL('image/jpeg', 0.5); 
+            socket.emit('frontend_frame', imageData);
+          }
+        }
+      }, 500); // Process 2 frames per second
+    }
+    return () => clearInterval(intervalId);
+  }, [activeTab, isVideoUpload, uploadedVideoURL, isUploading]);
+
   // Upload Logic handling
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -229,20 +254,23 @@ function App() {
     if (!file) return;
     setUploadedResult(null);
     setIsUploading(true);
+    setIsVideoUpload(file.type.startsWith('video/'));
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        const base64Data = event.target?.result;
-        // In real upload logic for a video, you'd extract frames. 
-        // We'll test with image directly via Socket.
-        socket.emit('frontend_frame', base64Data);
-
-        // Turn off loader after analysis returns (Simulated timeout or true event)
-        setTimeout(() => {
-           setIsUploading(false);
-        }, 3000); 
-    };
-    reader.readAsDataURL(file);
+    if (file.type.startsWith('video/')) {
+       const url = URL.createObjectURL(file);
+       setUploadedVideoURL(url);
+       setTimeout(() => setIsUploading(false), 2500); // Wait for loader animation
+    } else {
+       const reader = new FileReader();
+       reader.onload = (event) => {
+           const base64Data = event.target?.result as string;
+           socket.emit('frontend_frame', base64Data);
+           setTimeout(() => {
+              setIsUploading(false);
+           }, 2500); 
+       };
+       reader.readAsDataURL(file);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -260,8 +288,8 @@ function App() {
     }
   };
 
-  const toggleFullScreen = () => {
-    const el = document.getElementById('video-container');
+  const toggleFullScreen = (id: string) => {
+    const el = document.getElementById(id);
     if (!document.fullscreenElement) {
       el?.requestFullscreen().catch(err => {
         console.error(`Error attempting to enable fullscreen: ${err.message}`);
@@ -362,7 +390,7 @@ function App() {
 
                   {isCameraActive && (
                      <div className="absolute top-4 right-4 flex gap-2">
-                       <button onClick={toggleFullScreen} className="bg-black/50 text-white border border-white/20 p-2 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm">
+                       <button onClick={() => toggleFullScreen('video-container')} className="bg-black/50 text-white border border-white/20 p-2 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm">
                          <Maximize size={18} />
                        </button>
                        <button onClick={stopCamera} className="bg-danger/20 text-danger border border-danger/50 px-3 py-1 rounded-xl text-xs font-bold backdrop-blur-sm flex items-center">
@@ -372,34 +400,68 @@ function App() {
                   )}
                 </div>
               ) : (
-                <div className="w-full p-6 relative flex flex-col min-h-[400px]">
+                <div id="upload-container" className="w-full relative flex flex-col min-h-[400px] bg-black/50 group">
                   {isUploading ? (
-                    <HelmetCrashLoader />
-                  ) : uploadedResult ? (
-                    <div className="w-full h-full relative">
-                        <img src={uploadedResult} alt="Analysis Result" className="w-full h-full object-contain rounded-2xl" />
-                        <button onClick={() => setUploadedResult(null)} className="absolute top-4 right-4 bg-black/60 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 hover:bg-white/10">Clear Result</button>
+                    <div className="p-6 h-full flex flex-col items-center justify-center">
+                       <HelmetCrashLoader />
+                    </div>
+                  ) : (uploadedResult || uploadedVideoURL) ? (
+                    <div className="w-full h-full relative flex-1">
+                        {/* Hidden original video player used for extracting frames */}
+                        {isVideoUpload && uploadedVideoURL && (
+                          <video 
+                             ref={uploadVideoRef} 
+                             src={uploadedVideoURL} 
+                             autoPlay 
+                             loop 
+                             muted 
+                             className="hidden" 
+                          />
+                        )}
+                        
+                        {/* The Annotated Output Image emitted by backend */}
+                        {uploadedResult && (
+                           <img src={uploadedResult} alt="Analysis Result" className="absolute inset-0 w-full h-full object-contain bg-black" />
+                        )}
+                        
+                        {/* Placeholder before first frame arrives for video */}
+                        {isVideoUpload && !uploadedResult && (
+                           <div className="absolute inset-0 flex items-center justify-center text-primary font-bold">Processing Video Stream...</div>
+                        )}
+
+                        <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => toggleFullScreen('upload-container')} className="bg-black/50 text-white border border-white/20 p-2 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm">
+                            <Maximize size={18} />
+                          </button>
+                          <button onClick={() => {
+                             setUploadedResult(null); 
+                             setUploadedVideoURL(null); 
+                             setIsVideoUpload(false);
+                          }} className="bg-danger/20 text-danger border border-danger/50 px-4 py-2 rounded-xl text-xs font-bold hover:bg-danger/30 backdrop-blur-sm">Clear Output</button>
+                        </div>
                     </div>
                   ) : (
-                    <div 
-                      className={`upload-box w-full flex-1 ${isDragging ? 'drag-active' : ''}`}
-                      onDragEnter={handleDrag}
-                      onDragLeave={handleDrag}
-                      onDragOver={handleDrag}
-                      onDrop={handleDrop}
-                      onClick={() => document.getElementById('file-upload')?.click()}
-                    >
-                      <motion.div animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 3 }}>
-                        <UploadCloud size={64} className="text-[#3b82f6] mb-4" />
-                      </motion.div>
-                      <h3 className="text-2xl font-extrabold tracking-tight">Drop Image or Video for Analysis</h3>
-                      <p className="text-md text-text-muted text-center max-w-sm mt-2">Upload any media and our AI will process the physics, injury chance & helmet protection level.</p>
-                      
-                      <input id="file-upload" type="file" className="hidden" accept="image/*,video/*" onChange={handleFileSelect} />
-                      
-                      <button className="mt-6 px-6 py-3 bg-primary/20 text-primary border border-primary/30 rounded-xl font-bold hover:bg-primary/30 transition-colors pointer-events-none">
-                        Browse Files
-                      </button>
+                    <div className="p-6 h-full flex flex-col">
+                      <div 
+                        className={`upload-box w-full flex-1 ${isDragging ? 'drag-active' : ''}`}
+                        onDragEnter={handleDrag}
+                        onDragLeave={handleDrag}
+                        onDragOver={handleDrag}
+                        onDrop={handleDrop}
+                        onClick={() => document.getElementById('file-upload')?.click()}
+                      >
+                        <motion.div animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 3 }}>
+                          <UploadCloud size={64} className="text-[#3b82f6] mb-4" />
+                        </motion.div>
+                        <h3 className="text-2xl font-extrabold tracking-tight">Drop Image or Video for Analysis</h3>
+                        <p className="text-md text-text-muted text-center max-w-sm mt-2">Upload any media and our AI will process the physics, injury chance & helmet protection level.</p>
+                        
+                        <input id="file-upload" type="file" className="hidden" accept="image/*,video/*" onChange={handleFileSelect} />
+                        
+                        <button className="mt-6 px-6 py-3 bg-primary/20 text-primary border border-primary/30 rounded-xl font-bold hover:bg-primary/30 transition-colors pointer-events-none">
+                          Browse Files
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
