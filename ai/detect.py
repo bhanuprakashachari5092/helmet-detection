@@ -97,10 +97,15 @@ def on_process_frame(data):
         frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         # 1. Dual Model Inference
+        # We run the base model to find bikes (for plate search) but don't draw them
         results_base = model_base.predict(frame, conf=0.3, verbose=False, classes=[3])
-        annotated_frame = results_base[0].plot()
+        
+        # Start with a clean frame (no default YOLO boxes)
+        annotated_frame = frame.copy()
 
+        # 2. Detect Helmets using Custom Model (Classes 0, 1)
         results_helmet = model_helmet.predict(frame, conf=0.4, verbose=False, classes=[0, 1])
+
         
         for box in results_helmet[0].boxes:
             x1, y1, x2, y2 = map(int, box.xyxy[0])
