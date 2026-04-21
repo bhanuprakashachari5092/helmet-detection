@@ -128,13 +128,19 @@ def on_process_frame(data):
         # Handle Alerts/Status Updates
         if len(results[0].boxes) > 0:
             try:
+                # Get the class ID of the first detection
+                # 0: With Helmet, 1: Without Helmet (from data.yaml)
+                class_id = int(results[0].boxes.cls[0])
+                status = "Helmet" if class_id == 0 else "No Helmet"
+                
                 requests.post(API_URL, json={
-                    "status": "Detection Active",
+                    "status": status,
                     "confidence": float(results[0].boxes.conf[0]),
                     "timestamp": time.strftime("%H:%M:%S")
                 })
-            except:
-                pass
+            except Exception as e:
+                print(f"Error sending detection alert: {e}")
+
                 
     except Exception as e:
         print(f"Error processing frame: {e}")
