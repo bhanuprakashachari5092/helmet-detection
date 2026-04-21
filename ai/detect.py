@@ -16,14 +16,15 @@ API_URL = f"{SERVER_URL}/api/detection"
 
 # Load the Best Trained Model if available, else fallback to base YOLOv8
 try:
-    # Final trained model from helmet_model4
-    custom_model_path = 'runs/detect/helmet_model4/weights/best.pt'
+    # Final trained model moved to root for easy deployment
+    custom_model_path = 'best.pt'
     if os.path.exists(custom_model_path):
-        print(f"Loading FINAL Trained Model: {custom_model_path}")
+        print(f"Loading FINAL PRODUCTION Model: {custom_model_path}")
         model = YOLO(custom_model_path)
     else:
         print("Loading Base YOLOv8 Model (Waiting for custom training)...")
         model = YOLO('yolov8n.pt')
+
 
 
 except Exception as e:

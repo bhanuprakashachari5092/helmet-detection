@@ -8,3 +8,4 @@ venv/
 runs/
 yolov8n.pt
 *.pt
+!ai/best.pt
