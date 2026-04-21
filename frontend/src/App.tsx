@@ -246,7 +246,7 @@ function App() {
             socket.emit('frontend_frame', imageData);
           }
         }
-      }, 500); // Process 2 frames per second
+      }, 200); // Process 5 frames per second for smoother video playback
     }
     return () => clearInterval(intervalId);
   }, [activeTab, isVideoUpload, uploadedVideoURL, isUploading]);
@@ -442,15 +442,23 @@ function App() {
                         
                         {/* The Annotated Output Image emitted by backend */}
                         {uploadedResult && (
-                           <img src={uploadedResult} alt="Analysis Result" className="absolute inset-0 w-full h-full object-contain bg-black" />
+                           <div className="absolute inset-0 w-full h-full">
+                              <img src={uploadedResult} alt="Analysis Result" className="w-full h-full object-contain bg-black" />
+                              <div className="absolute bottom-6 left-6 flex items-center gap-2 bg-success/20 text-success border border-success/40 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest backdrop-blur-md animate-pulse">
+                                 <Zap size={12} /> AI Analysis Active
+                              </div>
+                           </div>
                         )}
                         
                         {/* Placeholder before first frame arrives for video */}
                         {isVideoUpload && !uploadedResult && (
-                           <div className="absolute inset-0 flex items-center justify-center text-primary font-bold">Processing Video Stream...</div>
+                           <div className="absolute inset-0 flex flex-col items-center justify-center text-primary font-bold gap-4 bg-black/80">
+                              <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                              <p className="animate-pulse">Initializing Neural Detection Stream...</p>
+                           </div>
                         )}
 
-                        <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                           <button onClick={() => toggleFullScreen('upload-container')} className="bg-black/50 text-white border border-white/20 p-2 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm">
                             <Maximize size={18} />
                           </button>
