@@ -394,6 +394,29 @@ function App() {
                     <div id="video-container" className="video-frame w-full h-full flex-1 relative bg-black/50 group">
                       <video ref={videoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${!isCameraActive ? 'hidden' : ''}`} />
                       {stream && <img src={stream} alt="Surveillance Output" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />}
+                      
+                      {/* Real-time Status Overlay */}
+                      {stream && (
+                        <motion.div 
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          key={lastStatus}
+                          className="absolute bottom-6 left-6 z-20 flex items-center gap-3"
+                        >
+                          <div className={`px-6 py-3 rounded-2xl border backdrop-blur-md shadow-lg flex items-center gap-3 ${
+                            lastStatus === 'Helmet' ? 'bg-success/20 border-success/40 text-success' : 
+                            lastStatus === 'No Helmet' ? 'bg-danger/20 border-danger/40 text-danger' : 
+                            'bg-primary/20 border-primary/40 text-primary'
+                          }`}>
+                            {lastStatus === 'Helmet' ? <ShieldCheck size={20} /> : <ShieldAlert size={20} />}
+                            <span className="font-black uppercase tracking-widest text-sm">
+                              {lastStatus === 'Helmet' ? 'HELMET DETECTED' : 
+                               lastStatus === 'No Helmet' ? 'NO HELMET' : 'SCANNING...'}
+                            </span>
+                          </div>
+                        </motion.div>
+                      )}
+
                       {(!isCameraActive && !stream) && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-text-muted gap-4">
                           <Camera size={48} className="opacity-20 text-primary" />
@@ -402,6 +425,7 @@ function App() {
                           </button>
                         </div>
                       )}
+
                       {isCameraActive && (
                         <div className="absolute top-4 right-4 flex gap-2">
                           <button onClick={flipCamera} className="md:hidden bg-black/50 text-white border border-white/20 p-2 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm"><RefreshCw size={18} /></button>
