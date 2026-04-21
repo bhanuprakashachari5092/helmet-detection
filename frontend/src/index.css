@@ -1,0 +1,211 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&display=swap');
+
+@theme {
+  --color-primary: #3b82f6;       
+  --color-success: #10b981;
+  --color-danger: #ef4444;
+}
+
+:root {
+  --primary: var(--color-primary);
+  --primary-glow: rgba(59, 130, 246, 0.4);
+  --secondary: #1e3a8a;     
+  --bg-dark: #00020a;
+  --card-bg: rgba(9, 14, 23, 0.65);
+  --border: rgba(59, 130, 246, 0.15);
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --success: var(--color-success);
+  --danger: var(--color-danger);
+}
+
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Outfit', sans-serif;
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Premium Animated Mesh Background */
+.premium-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background: radial-gradient(circle at 15% 50%, rgba(30, 58, 138, 0.25), transparent 40%),
+              radial-gradient(circle at 85% 30%, rgba(59, 130, 246, 0.15), transparent 50%),
+              radial-gradient(circle at 50% 80%, rgba(16, 185, 129, 0.05), transparent 40%);
+  filter: blur(40px);
+  animation: bg-pulse 10s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes bg-pulse {
+  0% { transform: scale(1) rotate(0deg); opacity: 0.8; }
+  100% { transform: scale(1.1) rotate(2deg); opacity: 1; }
+}
+
+/* Grid Lines overlay for tech-look */
+.grid-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+}
+
+#root {
+  width: 100%;
+}
+
+.main-container {
+  max-width: 1100px; 
+  margin: 0 auto;
+  padding: 60px 20px; /* Increased padding top/bottom */
+}
+
+/* Base Card Styles */
+.card {
+  background: var(--card-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 32px; /* Increased internal padding */
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.card:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 20px 40px var(--primary-glow), inset 0 1px 0 rgba(255,255,255,0.1);
+  transform: translateY(-4px);
+}
+
+.stat-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 12px;
+}
+
+.stat-value {
+  font-size: 2.75rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.1;
+}
+
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.15);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  background: var(--primary);
+  border-radius: 50%;
+  animation: pulse-blue 2s infinite;
+}
+
+@keyframes pulse-blue {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59,130,246, 0.4); }
+  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(59,130,246, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59,130,246, 0); }
+}
+
+/* Upload Box */
+.upload-box {
+  border: 2px dashed rgba(59, 130, 246, 0.3);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  background: rgba(59, 130, 246, 0.02);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  height: 100%;
+}
+
+.upload-box:hover, .upload-box.drag-active {
+  border-color: var(--primary);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.gradient-blue {
+  background: linear-gradient(135deg, #93c5fd 0%, #2563eb 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.scroll-area::-webkit-scrollbar {
+  width: 5px;
+}
+.scroll-area::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.3);
+  border-radius: 10px;
+}
+
+/* Tabs */
+.tab-btn {
+  padding: 12px 24px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-radius: 14px;
+  transition: all 0.2s ease;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  background: rgba(59, 130, 246, 0.1);
+  color: #fff;
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+/* Loader specific CSS */
+.crash-loader-container {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-bg);
+  backdrop-filter: blur(10px);
+  z-index: 50;
+  border-radius: 20px;
+}

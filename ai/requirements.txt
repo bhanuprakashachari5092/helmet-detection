@@ -1,0 +1,6 @@
+ultralytics
+opencv-python-headless
+numpy
+python-socketio[client]
+requests
+python-dotenv

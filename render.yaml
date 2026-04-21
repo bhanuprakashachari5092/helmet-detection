@@ -1,0 +1,26 @@
+services:
+  # Node.js Socket & API Server
+  - type: web
+    name: helmet-guard-backend
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 10000
+
+  # Python AI Video Processor
+  - type: worker
+    name: helmet-guard-ai
+    env: python
+    plan: free
+    rootDir: ai
+    buildCommand: pip install -r requirements.txt
+    startCommand: python detect.py
+    envVars:
+      - key: SERVER_URL
+        value: "https://helmet-guard-backend.onrender.com"
+      - key: PYTHONUNBUFFERED
+        value: "true"
