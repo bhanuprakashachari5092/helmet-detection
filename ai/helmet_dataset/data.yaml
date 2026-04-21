@@ -1,0 +1,6 @@
+path: C:\Users\Banu Prakash\OneDrive\Desktop\helmet detect project\ai\helmet_dataset
+train: train/images
+val: val/images
+
+nc: 2
+names: ['With Helmet', 'Without Helmet']

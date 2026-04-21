@@ -97,83 +97,47 @@ def on_process_frame(data):
         preprocessed_frame = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
         
         # 2. Run YOLO Inference on the preprocessed frame
-        results = model(preprocessed_frame, stream=False, verbose=False)
+        # We use verbose=False to keep logs clean
+        results = model.predict(preprocessed_frame, conf=0.4, verbose=False)
         
-        highest_conf = 0.0
-        detected = False
-        current_status = "No Detection"
+        # 3. Use YOLO's native plotting for the "Perfect Output" look
+        # This draws beautiful boxes, labels, and masks automatically
+        annotated_frame = results[0].plot()
         
-        # Number Plate Detection using OpenCV Haar Cascades
+        # Optional: Keep Number Plate Detection (OpenCV)
         gray_frame = cv2.cvtColor(preprocessed_frame, cv2.COLOR_BGR2GRAY)
         plates = plate_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
         for (px, py, pw, ph) in plates:
-            cv2.rectangle(frame, (px, py), (px + pw, py + ph), (255, 0, 0), 3) # Blue box for plates
-            cv2.putText(frame, "Number Plate", (px, py - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
-            detected = True
-            
-        for r in results:
-            names = r.names # Get class names from model
-            boxes = r.boxes
-            for box in boxes:
-                # Get coordinates
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
-                conf = float(box.conf[0])
-                cls = int(box.cls[0])
-                class_name = names[cls].lower()
-                
-                # Check for helmet specific classes (standard in many helmet datasets)
-                if 'helmet' in class_name or 'head' in class_name or 'person' in class_name:
-                    detected = True
-                    highest_conf = max(highest_conf, conf)
-                    
-                    # Logic: if the model explicitly says 'helmet', it's safe. 
-                    # If it says 'no-helmet' or just 'person/head' with low conf, it's a violation.
-                    if 'with' in class_name or 'helmet' == class_name:
-                        label, color, current_status = "HELMET DETECTED", (0, 255, 0), "Safety Verified"
-                    elif 'without' in class_name or 'no' in class_name or 'head' in class_name:
-                        label, color, current_status = "NO HELMET - VIOLATION", (0, 0, 255), "Violation Detected"
-                    else:
-                        # Fallback for general models (like yolov8n.pt)
-                        if conf > 0.65:
-                            label, color, current_status = "HELMET DETECTED", (0, 255, 0), "Safety Verified"
-                        else:
-                            label, color, current_status = "NO HELMET - VIOLATION", (0, 0, 255), "Violation Detected"
-                            
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 3)
-                    cv2.putText(frame, f"{label} {conf*100:.1f}%", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-                
-                elif 'motorcycle' in class_name or 'bike' in class_name:
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 165, 0), 2)
-                    cv2.putText(frame, "Motorcycle", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 165, 0), 1)
-        
+            cv2.rectangle(annotated_frame, (px, py), (px + pw, py + ph), (255, 0, 0), 2)
+            cv2.putText(annotated_frame, "PLATE", (px, py - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
         # Render Processed Frame back to base64
-        _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        _, buffer = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
         jpg_as_text = base64.b64encode(buffer).decode('utf-8')
         
-        # Emit processed frame back to frontend (ALWAYS)
+        # Emit processed frame back to frontend
         sio.emit('frame', jpg_as_text)
 
-        # Send detection info if detected and cooldown passed
-        if detected and (time.time() - last_detection_time > cooldown):
+        # Handle Alerts/Status Updates
+        if len(results[0].boxes) > 0:
             try:
                 requests.post(API_URL, json={
-                    "status": current_status,
-                    "confidence": highest_conf,
+                    "status": "Detection Active",
+                    "confidence": float(results[0].boxes.conf[0]),
                     "timestamp": time.strftime("%H:%M:%S")
                 })
-                last_detection_time = time.time()
-            except Exception as e:
-                print(f"Error sending detection alert: {e}")
+            except:
+                pass
                 
     except Exception as e:
         print(f"Error processing frame: {e}")
-        # Fallback: send original frame so the UI doesn't freeze
+        # Fallback to original frame so UI doesn't freeze
         try:
             _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 50])
-            jpg_as_text = base64.b64encode(buffer).decode('utf-8')
-            sio.emit('frame', jpg_as_text)
+            sio.emit('frame', base64.b64encode(buffer).decode('utf-8'))
         except:
             pass
+
 
 if __name__ == "__main__":
     start_socket()
