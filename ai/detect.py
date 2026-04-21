@@ -125,14 +125,35 @@ def on_process_frame(data):
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 3)
 
         
-        # 4. Number Plate Detection (OpenCV Haar Cascade)
-        # We always check for plates regardless of YOLO results
-        gray_frame = cv2.cvtColor(preprocessed_frame, cv2.COLOR_BGR2GRAY)
-        plates = plate_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=7, minSize=(30, 30))
-        for (px, py, pw, ph) in plates:
-            # Draw blue box for plates to distinguish from helmet status
-            cv2.rectangle(annotated_frame, (px, py), (px + pw, py + ph), (255, 100, 0), 3)
-            cv2.putText(annotated_frame, "NUMBER PLATE", (px, py - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 100, 0), 2)
+        # 3. Optimized Number Plate Detection (Search within Motorcycle regions)
+        # We look for plates specifically on or near the bikes we found
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # If we found bikes, we narrow the search area
+        for bike in results_base[0].boxes:
+            bx1, by1, bx2, by2 = map(int, bike.xyxy[0])
+            # Focus on the lower part of the motorcycle detection for the plate
+            bike_roi = gray_frame[by1:by2, bx1:bx2]
+            
+            plates = plate_cascade.detectMultiScale(bike_roi, scaleFactor=1.1, minNeighbors=5)
+            for (px, py, pw, ph) in plates:
+                # Convert ROI coordinates back to main frame coordinates
+                fx, fy = bx1 + px, by1 + py
+                cv2.rectangle(annotated_frame, (fx, fy), (fx + pw, fy + ph), (0, 165, 255), 3)
+                
+                # Tech-style label for Plate
+                cv2.rectangle(annotated_frame, (fx, fy - 25), (fx + 140, fy), (0, 165, 255), -1)
+                cv2.putText(annotated_frame, "REG. PLATE", (fx + 5, fy - 7), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+        # Fallback: General search if no bikes were detected (less accurate)
+        if len(results_base[0].boxes) == 0:
+            plates = plate_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=10)
+            for (px, py, pw, ph) in plates:
+                cv2.rectangle(annotated_frame, (px, py), (px + pw, py + ph), (0, 165, 255), 2)
+                cv2.putText(annotated_frame, "PLATE", (px, py - 10), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 165, 255), 2)
+
 
 
         # Render Processed Frame back to base64
