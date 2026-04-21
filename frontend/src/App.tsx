@@ -402,7 +402,7 @@ function App() {
 
                   {isCameraActive && (
                      <div className="absolute top-4 right-4 flex gap-2">
-                       <button onClick={flipCamera} className="bg-black/50 text-white border border-white/20 p-2 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm" title="Flip Camera">
+                       <button onClick={flipCamera} className="md:hidden bg-black/50 text-white border border-white/20 p-2 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm" title="Flip Camera">
                          <RefreshCw size={18} />
                        </button>
                        <button onClick={() => toggleFullScreen('video-container')} className="bg-black/50 text-white border border-white/20 p-2 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm" title="Full Screen">
