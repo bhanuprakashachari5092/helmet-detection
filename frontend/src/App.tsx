@@ -143,6 +143,7 @@ function App() {
     
     // Receive predicted frame from python backend
     socket.on('frame', (data) => {
+      console.log("Socket: Received frame from AI");
       const base64Data = `data:image/jpeg;base64,${data}`;
       // Output differently based on mode
       if (activeTab === 'live') {
@@ -279,6 +280,7 @@ function App() {
            
            // Emit multiple times during the loader phase to ensure AI picks it up
            const intervalId = setInterval(() => {
+              console.log("Socket: Emitting frame to AI...");
               socket.emit('frontend_frame', base64Data);
            }, 500);
 

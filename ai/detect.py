@@ -50,6 +50,7 @@ def start_socket():
 
 @sio.on('process_this_frame')
 def on_process_frame(data):
+    print("AI: Received frame for processing...")
     """
     Called when frontend sends a frame either from WebCam or Uploads
     """
