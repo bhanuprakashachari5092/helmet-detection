@@ -538,10 +538,11 @@ function App() {
                          <div className="space-y-6">
                             <div>
                                <p className="text-text-muted text-[10px] uppercase font-black mb-2">Helmet Verification</p>
-                               <div className={`p-4 bg-white/5 rounded-2xl border border-white/10 font-bold uppercase text-sm ${lastStatus === 'Helmet' ? 'text-success' : 'text-danger'}`}>
-                                  {lastStatus === 'Helmet' ? '✅ Verified Protected' : '❌ No Helmet Detected'}
+                               <div className={`p-4 bg-white/5 rounded-2xl border border-white/10 font-black uppercase text-sm ${lastStatus === 'Helmet' ? 'text-success' : 'text-danger'}`}>
+                                  {lastStatus === 'Helmet' ? '✅ YES (HELMET DETECTED)' : '❌ NO (NO HELMET)'}
                                </div>
                             </div>
+
                             <div>
                                <p className="text-text-muted text-[10px] uppercase font-black mb-2">Primary Target</p>
                                <div className="p-4 bg-white/5 rounded-2xl border border-white/10 font-bold text-white uppercase text-sm">Motorcyclist</div>
