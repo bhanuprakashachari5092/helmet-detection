@@ -71,88 +71,80 @@ def start_socket():
             print(f"❌ Connection error: {e}. Retrying in 3s...")
             time.sleep(3)
 
+import easyocr
+
+# Initialize EasyOCR Reader (English)
+# This may download models on the first run
+try:
+    reader = easyocr.Reader(['en'], gpu=False) # Keep gpu=False for stability on CPU-heavy systems
+    print("✅ EasyOCR Reader Initialized")
+except Exception as e:
+    print(f"⚠️ EasyOCR Init Error: {e}")
+    reader = None
+
+# Frame counter for OCR throttle
+ocr_frame_count = 0
+
 @sio.on('process_this_frame')
 def on_process_frame(data):
-    """
-    Core AI Processing Engine
-    """
-    print(f"🧠 AI Analysis: Frame received at {time.strftime('%H:%M:%S')} - Processing with YOLOv8 & OpenCV...")
+    global ocr_frame_count
+    ocr_frame_count += 1
+    
     try:
-        # data may start with 'data:image/jpeg;base64,' -- if so, strip it
-        if "base64," in data:
-            data = data.split("base64,")[1]
-            
-        # Decode base64 to OpenCV format
-        img_data = base64.b64decode(data)
-        np_arr = np.frombuffer(img_data, np.uint8)
-        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-        
-        if frame is None:
-            return
+        # Decode base64 frame
+        img_data = base64.b64decode(data.split(',')[1])
+        nparr = np.frombuffer(img_data, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-        # 1. OpenCV Image Preprocessing (Contrast Enhancement using CLAHE)
-        # This makes the detection more robust in different lighting conditions
-        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-        l_channel, a, b = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        cl = clahe.apply(l_channel)
-        limg = cv2.merge((cl, a, b))
-        preprocessed_frame = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-        
-        # 2. Run Dual Model Inference
-        
-        # A. Detect Motorcycles using Base Model (Class 3 is motorcycle)
-        results_base = model_base.predict(preprocessed_frame, conf=0.3, verbose=False, classes=[3])
-        # Plot base results (Motorcycles)
+        # 1. Dual Model Inference
+        results_base = model_base.predict(frame, conf=0.3, verbose=False, classes=[3])
         annotated_frame = results_base[0].plot()
 
-        # B. Detect Helmets using Custom Model (Classes 0, 1)
-        results_helmet = model_helmet.predict(preprocessed_frame, conf=0.4, verbose=False, classes=[0, 1])
+        results_helmet = model_helmet.predict(frame, conf=0.4, verbose=False, classes=[0, 1])
         
-        # Manually plot helmet results onto the already annotated frame
-        # This gives us full control over both detections
         for box in results_helmet[0].boxes:
             x1, y1, x2, y2 = map(int, box.xyxy[0])
             cls = int(box.cls[0])
             conf = float(box.conf[0])
             label = "HELMET" if cls == 0 else "NO HELMET"
-            color = (0, 255, 0) if cls == 0 else (0, 0, 255) # Green for Helmet, Red for No Helmet
-            
-            # Draw Thick Bounding Box
+            color = (0, 255, 0) if cls == 0 else (0, 0, 255)
             cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 4)
-            # Add Label with Glow effect
             cv2.putText(annotated_frame, f"{label} {conf:.1%}", (x1, y1 - 15), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 3)
 
-        
-        # 3. Optimized Number Plate Detection (Search within Motorcycle regions)
-        # We look for plates specifically on or near the bikes we found
+        # 2. Optimized Number Plate Detection + OCR
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         
-        # If we found bikes, we narrow the search area
         for bike in results_base[0].boxes:
             bx1, by1, bx2, by2 = map(int, bike.xyxy[0])
-            # Focus on the lower part of the motorcycle detection for the plate
-            bike_roi = gray_frame[by1:by2, bx1:bx2]
+            # Ensure ROI is within bounds
+            by1, by2 = max(0, by1), min(frame.shape[0], by2)
+            bx1, bx2 = max(0, bx1), min(frame.shape[1], bx2)
             
-            plates = plate_cascade.detectMultiScale(bike_roi, scaleFactor=1.1, minNeighbors=5)
+            bike_roi_gray = gray_frame[by1:by2, bx1:bx2]
+            bike_roi_color = frame[by1:by2, bx1:bx2]
+            
+            plates = plate_cascade.detectMultiScale(bike_roi_gray, scaleFactor=1.1, minNeighbors=5)
             for (px, py, pw, ph) in plates:
-                # Convert ROI coordinates back to main frame coordinates
                 fx, fy = bx1 + px, by1 + py
+                
+                # Draw Plate Box
                 cv2.rectangle(annotated_frame, (fx, fy), (fx + pw, fy + ph), (0, 165, 255), 3)
                 
-                # Tech-style label for Plate
-                cv2.rectangle(annotated_frame, (fx, fy - 25), (fx + 140, fy), (0, 165, 255), -1)
-                cv2.putText(annotated_frame, "REG. PLATE", (fx + 5, fy - 7), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                # Perform OCR (Throttled to every 10 frames for performance)
+                plate_text = "SCANNING..."
+                if reader and ocr_frame_count % 10 == 0:
+                    plate_roi = bike_roi_color[py:py+ph, px:px+pw]
+                    if plate_roi.size > 0:
+                        ocr_res = reader.readtext(plate_roi)
+                        if ocr_res:
+                            plate_text = ocr_res[0][1].upper()
+                
+                # Draw Tech-style label with OCR Text
+                cv2.rectangle(annotated_frame, (fx, fy - 35), (fx + 220, fy), (0, 165, 255), -1)
+                cv2.putText(annotated_frame, f"ID: {plate_text}", (fx + 5, fy - 10), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-        # Fallback: General search if no bikes were detected (less accurate)
-        if len(results_base[0].boxes) == 0:
-            plates = plate_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=10)
-            for (px, py, pw, ph) in plates:
-                cv2.rectangle(annotated_frame, (px, py), (px + pw, py + ph), (0, 165, 255), 2)
-                cv2.putText(annotated_frame, "PLATE", (px, py - 10), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 165, 255), 2)
 
 
 
