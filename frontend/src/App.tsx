@@ -123,6 +123,7 @@ function App() {
   const [detections, setDetections] = useState<Detection[]>([]);
   const [stats, setStats] = useState({ helmet: 28, noHelmet: 4 });
   const [isConnected, setIsConnected] = useState(false);
+  const [lastStatus, setLastStatus] = useState<string>('Scanning...');
   
   const [activeTab, setActiveTab] = useState<'live' | 'upload'>('live');
   const [isDragging, setIsDragging] = useState(false);
@@ -158,6 +159,7 @@ function App() {
 
     socket.on('detection', (data: Detection) => {
       setDetections(prev => [data, ...prev].slice(0, 5));
+      setLastStatus(data.status);
       if (data.status === 'Helmet') {
         setStats(prev => ({ ...prev, helmet: prev.helmet + 1 }));
       } else {
@@ -510,6 +512,12 @@ function App() {
                       <div className="card flex-1">
                          <h4 className="text-xs font-bold text-primary uppercase tracking-widest mb-6">Detection Info</h4>
                          <div className="space-y-6">
+                            <div>
+                               <p className="text-text-muted text-[10px] uppercase font-black mb-2">Helmet Verification</p>
+                               <div className={`p-4 bg-white/5 rounded-2xl border border-white/10 font-bold uppercase text-sm ${lastStatus === 'Helmet' ? 'text-success' : 'text-danger'}`}>
+                                  {lastStatus === 'Helmet' ? '✅ Verified Protected' : '❌ No Helmet Detected'}
+                               </div>
+                            </div>
                             <div>
                                <p className="text-text-muted text-[10px] uppercase font-black mb-2">Primary Target</p>
                                <div className="p-4 bg-white/5 rounded-2xl border border-white/10 font-bold text-white uppercase text-sm">Motorcyclist</div>
