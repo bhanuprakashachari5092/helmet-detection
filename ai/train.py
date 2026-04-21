@@ -19,7 +19,6 @@ def train_helmet_model():
     print("Training complete! Model saved in runs/detect/helmet_model/weights/best.pt")
 
 if __name__ == "__main__":
-    # Note: You need a dataset (images and labels in YOLO format)
-    # and a data.yaml file to run this.
-    print("Starting Training Process...")
-    # train_helmet_model()
+    # Ensure you ran convert_voc_to_yolo.py first!
+    print("🚀 Starting Training Process on Custom Dataset...")
+    train_helmet_model()

@@ -14,13 +14,15 @@ import os
 SERVER_URL = os.environ.get("SERVER_URL", "http://localhost:5000")
 API_URL = f"{SERVER_URL}/api/detection"
 
-# Load a Specialized Pre-trained Helmet Detection Model
-# This model is pre-trained specifically on helmet datasets by the community
+# Load the Best Trained Model if available, else fallback to base YOLOv8
 try:
-    print("Loading Specialized Helmet Detection Model...")
-    model = YOLO('yolov8n.pt') # Fallback to base
-    # You can also try: model = YOLO('keremberke/yolov8n-helmet-detection')
-    # For now, we use the optimized simulation or a custom weight if you have one.
+    custom_model_path = 'runs/detect/helmet_guard_v1/weights/best.pt'
+    if os.path.exists(custom_model_path):
+        print(f"Loading CUSTOM Trained Model: {custom_model_path}")
+        model = YOLO(custom_model_path)
+    else:
+        print("Loading Base YOLOv8 Model (Waiting for custom training)...")
+        model = YOLO('yolov8n.pt')
 except Exception as e:
     print(f"Error loading model: {e}")
     model = YOLO('yolov8n.pt') 
