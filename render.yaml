@@ -21,6 +21,6 @@ services:
     startCommand: python detect.py
     envVars:
       - key: SERVER_URL
-        value: "https://helmet-guard-backend.onrender.com"
+        value: "https://helmet-detection-51iy.onrender.com"
       - key: PYTHONUNBUFFERED
         value: "true"
