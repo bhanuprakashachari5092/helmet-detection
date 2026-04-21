@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
-import { ShieldCheck, ShieldAlert, Camera, Activity, UploadCloud, Video, Bike, Shield, Zap, Maximize, RefreshCw } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Camera, Activity, UploadCloud, Video, Bike, Shield, Zap, Maximize, RefreshCw, X, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
@@ -132,6 +132,7 @@ function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const uploadVideoRef = useRef<HTMLVideoElement>(null);
   const [isVideoUpload, setIsVideoUpload] = useState(false);
   const [uploadedVideoURL, setUploadedVideoURL] = useState<string | null>(null);
@@ -151,6 +152,7 @@ function App() {
       } else {
           // It's the upload processing result
           setUploadedResult(base64Data);
+          if (!showModal) setShowModal(true);
       }
     });
 
@@ -540,6 +542,87 @@ function App() {
           </div>
         </div>
       </div>
+
+      {/* Results Pop-up Modal */}
+      <AnimatePresence>
+        {showModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+             <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               onClick={() => setShowModal(false)}
+               className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+             />
+             
+             <motion.div 
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="relative bg-[#0a0f1d] border border-white/10 rounded-[32px] p-8 max-w-4xl w-full shadow-2xl shadow-primary/20 overflow-hidden"
+             >
+                {/* Decorative Background Glow */}
+                <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/20 rounded-full blur-[80px]"></div>
+                
+                <div className="flex justify-between items-center mb-8 relative z-10">
+                   <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-success/20 rounded-2xl flex items-center justify-center border border-success/30">
+                        <CheckCircle2 className="text-success" size={24} />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-black tracking-tight text-white">AI Detection Result</h2>
+                        <p className="text-text-muted text-xs font-bold uppercase tracking-widest mt-1">Status: Processed Successfully</p>
+                      </div>
+                   </div>
+                   <button 
+                      onClick={() => setShowModal(false)}
+                      className="p-3 hover:bg-white/5 rounded-2xl transition-colors border border-white/5 group"
+                   >
+                      <X size={20} className="text-text-muted group-hover:text-white transition-colors" />
+                   </button>
+                </div>
+
+                <div className="relative aspect-video bg-black/40 rounded-[24px] overflow-hidden border border-white/5 shadow-inner">
+                   {uploadedResult ? (
+                      <img src={uploadedResult} alt="Result" className="w-full h-full object-contain" />
+                   ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+                         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                         <p className="text-sm font-bold text-primary animate-pulse">Reconstructing Neural Result...</p>
+                      </div>
+                   )}
+                   
+                   <div className="absolute top-6 left-6 flex items-center gap-2 bg-black/60 border border-white/10 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest backdrop-blur-md">
+                      <Zap size={14} className="text-primary" /> Active Inference
+                   </div>
+                </div>
+
+                <div className="mt-10 flex flex-col sm:flex-row justify-between items-center gap-6 relative z-10">
+                   <div className="text-sm text-text-muted flex items-center gap-4">
+                      <div className="flex -space-x-2">
+                        {[1,2,3].map(i => <div key={i} className="w-6 h-6 rounded-full bg-primary/20 border border-primary/40"></div>)}
+                      </div>
+                      <span className="font-medium italic">Verified by AI Matrix</span>
+                   </div>
+                   
+                   <div className="flex gap-4 w-full sm:w-auto">
+                      <button 
+                        onClick={() => setShowModal(false)}
+                        className="flex-1 sm:flex-none px-10 py-4 bg-white/5 hover:bg-white/10 rounded-2xl font-bold transition-all text-sm border border-white/5"
+                      >
+                        Close
+                      </button>
+                      <button 
+                        className="flex-1 sm:flex-none px-10 py-4 bg-primary hover:bg-primary-hover text-white rounded-2xl font-bold shadow-lg shadow-primary/20 transition-all text-sm hover:scale-[1.02] active:scale-[0.98]"
+                      >
+                        Accept Result
+                      </button>
+                   </div>
+                </div>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
