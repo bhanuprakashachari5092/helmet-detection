@@ -78,50 +78,48 @@ def on_process_frame(data):
         preprocessed_frame = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
         
         # 2. Run YOLO Inference on the preprocessed frame
-        results = model(preprocessed_frame, stream=False, verbose=False) # stream=False for single frames
+        results = model(preprocessed_frame, stream=False, verbose=False)
         
-        current_status = "No Helmet" # Demo default
         highest_conf = 0.0
         detected = False
+        current_status = "No Detection"
         
         # Number Plate Detection using OpenCV Haar Cascades
         gray_frame = cv2.cvtColor(preprocessed_frame, cv2.COLOR_BGR2GRAY)
-        plates = plate_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=4, minSize=(30, 30))
+        plates = plate_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
         for (px, py, pw, ph) in plates:
             cv2.rectangle(frame, (px, py), (px + pw, py + ph), (255, 0, 0), 3) # Blue box for plates
-            cv2.putText(frame, "Number Plate", (px, py - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+            cv2.putText(frame, "Number Plate", (px, py - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+            detected = True
             
         for r in results:
             boxes = r.boxes
             for box in boxes:
-                # cls 0 is person, cls 3 is motorcycle
+                # Get coordinates
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
                 conf = float(box.conf[0])
                 cls = int(box.cls[0])
                 
-                if cls == 0 and conf > 0.4:
+                # YOLOv8 default model (COCO) classes: 0: person, 3: motorcycle
+                if cls == 0: # Person
                     detected = True
                     highest_conf = max(highest_conf, conf)
-                    
-                    # Simulation: if confidence is high, consider it Helmet (Green), else No Helmet (Red)
+                    # Simulated logic for helmet
                     if conf > 0.65:
-                        status_text = "Helmet"
-                        color = (0, 255, 0) # Green
-                        current_status = "Helmet"
+                        label, color, current_status = "Helmet", (0, 255, 0), "Helmet"
                     else:
-                        status_text = "No Helmet"
-                        color = (0, 0, 255) # Red
-                        current_status = "No Helmet"
-                    
-                    # Draw Bounding Box
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+                        label, color, current_status = "No Helmet", (0, 0, 255), "No Helmet"
                     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 3)
-                    cv2.putText(frame, f"{status_text} {conf*100:.1f}%", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+                    cv2.putText(frame, f"{label} {conf*100:.1f}%", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                elif cls == 3: # Motorcycle
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 165, 0), 2)
+                    cv2.putText(frame, "Motorcycle", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 165, 0), 1)
         
         # Render Processed Frame back to base64
-        _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
+        _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
         jpg_as_text = base64.b64encode(buffer).decode('utf-8')
         
-        # Emit processed frame back to frontend
+        # Emit processed frame back to frontend (ALWAYS)
         sio.emit('frame', jpg_as_text)
 
         # Send detection info if detected and cooldown passed
@@ -138,6 +136,13 @@ def on_process_frame(data):
                 
     except Exception as e:
         print(f"Error processing frame: {e}")
+        # Fallback: send original frame so the UI doesn't freeze
+        try:
+            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 50])
+            jpg_as_text = base64.b64encode(buffer).decode('utf-8')
+            sio.emit('frame', jpg_as_text)
+        except:
+            pass
 
 if __name__ == "__main__":
     start_socket()
