@@ -97,19 +97,23 @@ def on_process_frame(data):
         preprocessed_frame = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
         
         # 2. Run YOLO Inference on the preprocessed frame
-        # We use verbose=False to keep logs clean
-        results = model.predict(preprocessed_frame, conf=0.4, verbose=False)
+        # Filter classes to only show Helmet related detections (Class 0 and 1 in our custom model)
+        # If using base model, 0=person, 1=bicycle, 2=car, 3=motorcycle...
+        # We target specific classes to keep the output clean as requested.
+        results = model.predict(preprocessed_frame, conf=0.4, verbose=False, classes=[0, 1])
         
         # 3. Use YOLO's native plotting for the "Perfect Output" look
-        # This draws beautiful boxes, labels, and masks automatically
         annotated_frame = results[0].plot()
         
-        # Optional: Keep Number Plate Detection (OpenCV)
+        # 4. Number Plate Detection (OpenCV Haar Cascade)
+        # We always check for plates regardless of YOLO results
         gray_frame = cv2.cvtColor(preprocessed_frame, cv2.COLOR_BGR2GRAY)
-        plates = plate_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+        plates = plate_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=7, minSize=(30, 30))
         for (px, py, pw, ph) in plates:
-            cv2.rectangle(annotated_frame, (px, py), (px + pw, py + ph), (255, 0, 0), 2)
-            cv2.putText(annotated_frame, "PLATE", (px, py - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+            # Draw blue box for plates to distinguish from helmet status
+            cv2.rectangle(annotated_frame, (px, py), (px + pw, py + ph), (255, 100, 0), 3)
+            cv2.putText(annotated_frame, "NUMBER PLATE", (px, py - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 100, 0), 2)
+
 
         # Render Processed Frame back to base64
         _, buffer = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
