@@ -16,20 +16,19 @@ API_URL = f"{SERVER_URL}/api/detection"
 
 # Load the Best Trained Model if available, else fallback to base YOLOv8
 try:
-    # Final trained model moved to root for easy deployment
+    # 1. Custom Helmet Model
     custom_model_path = 'best.pt'
-    if os.path.exists(custom_model_path):
-        print(f"Loading FINAL PRODUCTION Model: {custom_model_path}")
-        model = YOLO(custom_model_path)
-    else:
-        print("Loading Base YOLOv8 Model (Waiting for custom training)...")
-        model = YOLO('yolov8n.pt')
-
-
-
+    model_helmet = YOLO(custom_model_path)
+    print(f"✅ Final Helmet Model Loaded: {custom_model_path}")
+    
+    # 2. Base YOLO Model for Motorcycle Detection (COCO Class 3)
+    model_base = YOLO('yolov8n.pt')
+    print("✅ Base Model Loaded for Motorcycle Tracking")
 except Exception as e:
-    print(f"Error loading model: {e}")
-    model = YOLO('yolov8n.pt') 
+    print(f"Error loading models: {e}")
+    # Fallback
+    model_helmet = YOLO('yolov8n.pt')
+    model_base = model_helmet
 
 # Load OpenCV Number Plate Cascade
 plate_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_russian_plate_number.xml')
@@ -100,14 +99,31 @@ def on_process_frame(data):
         limg = cv2.merge((cl, a, b))
         preprocessed_frame = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
         
-        # 2. Run YOLO Inference on the preprocessed frame
-        # Filter classes to only show Helmet related detections (Class 0 and 1 in our custom model)
-        # If using base model, 0=person, 1=bicycle, 2=car, 3=motorcycle...
-        # We target specific classes to keep the output clean as requested.
-        results = model.predict(preprocessed_frame, conf=0.4, verbose=False, classes=[0, 1])
+        # 2. Run Dual Model Inference
         
-        # 3. Use YOLO's native plotting for the "Perfect Output" look
-        annotated_frame = results[0].plot()
+        # A. Detect Motorcycles using Base Model (Class 3 is motorcycle)
+        results_base = model_base.predict(preprocessed_frame, conf=0.3, verbose=False, classes=[3])
+        # Plot base results (Motorcycles)
+        annotated_frame = results_base[0].plot()
+
+        # B. Detect Helmets using Custom Model (Classes 0, 1)
+        results_helmet = model_helmet.predict(preprocessed_frame, conf=0.4, verbose=False, classes=[0, 1])
+        
+        # Manually plot helmet results onto the already annotated frame
+        # This gives us full control over both detections
+        for box in results_helmet[0].boxes:
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            cls = int(box.cls[0])
+            conf = float(box.conf[0])
+            label = "HELMET" if cls == 0 else "NO HELMET"
+            color = (0, 255, 0) if cls == 0 else (0, 0, 255) # Green for Helmet, Red for No Helmet
+            
+            # Draw Thick Bounding Box
+            cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 4)
+            # Add Label with Glow effect
+            cv2.putText(annotated_frame, f"{label} {conf:.1%}", (x1, y1 - 15), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 3)
+
         
         # 4. Number Plate Detection (OpenCV Haar Cascade)
         # We always check for plates regardless of YOLO results
@@ -127,18 +143,18 @@ def on_process_frame(data):
         sio.emit('frame', jpg_as_text)
 
         # Handle Alerts/Status Updates
-        if len(results[0].boxes) > 0:
+        if len(results_helmet[0].boxes) > 0:
             try:
                 # Get the class ID of the first detection
-                # 0: With Helmet, 1: Without Helmet (from data.yaml)
-                class_id = int(results[0].boxes.cls[0])
+                class_id = int(results_helmet[0].boxes.cls[0])
                 status = "Helmet" if class_id == 0 else "No Helmet"
                 
                 requests.post(API_URL, json={
                     "status": status,
-                    "confidence": float(results[0].boxes.conf[0]),
+                    "confidence": float(results_helmet[0].boxes.conf[0]),
                     "timestamp": time.strftime("%H:%M:%S")
                 })
+
             except Exception as e:
                 print(f"Error sending detection alert: {e}")
 
