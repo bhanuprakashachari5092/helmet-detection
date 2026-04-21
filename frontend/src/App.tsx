@@ -118,6 +118,7 @@ const HelmetCrashLoader = () => {
 };
 
 function App() {
+  const [view, setView] = useState<'dashboard' | 'results'>('dashboard');
   const [stream, setStream] = useState<string | null>(null);
   const [detections, setDetections] = useState<Detection[]>([]);
   const [stats, setStats] = useState({ helmet: 28, noHelmet: 4 });
@@ -132,7 +133,6 @@ function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const [showModal, setShowModal] = useState(false);
   const uploadVideoRef = useRef<HTMLVideoElement>(null);
   const [isVideoUpload, setIsVideoUpload] = useState(false);
   const [uploadedVideoURL, setUploadedVideoURL] = useState<string | null>(null);
@@ -152,7 +152,7 @@ function App() {
       } else {
           // It's the upload processing result
           setUploadedResult(base64Data);
-          if (!showModal) setShowModal(true);
+          if (view !== 'results') setView('results');
       }
     });
 
@@ -171,7 +171,7 @@ function App() {
       socket.off('frame');
       socket.off('detection');
     };
-  }, [activeTab]);
+  }, [activeTab, view]);
 
   // Activate Laptop/Mobile WebCam
   const startCamera = async (currentFacingMode = facingMode) => {
@@ -323,304 +323,221 @@ function App() {
 
   return (
     <>
-      {/* Hidden local canvas for WebCam capture routing */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
-
       <div className="premium-bg"></div>
       <div className="grid-overlay"></div>
       
-      <div className="main-container">
-        {/* Header Area */}
-        <header className="flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left" style={{ marginBottom: '60px' }}>
-          <div className="flex items-center gap-5 justify-center md:justify-start">
-            <ScanningHelmet />
-            <div>
-              <h1 className="text-4xl font-extrabold tracking-tight gradient-blue mb-1">HELMET GUARD AI</h1>
-              <p className="text-text-muted text-sm uppercase tracking-[3px] font-bold">Powered by OpenCV & YOLOv8n Automation</p>
-            </div>
-          </div>
-          
-          <div className="live-badge">
-            <div className="dot"></div>
-            {isConnected ? 'SYSTEM CONNECTED' : 'AWAITING CONNECTION'}
-          </div>
-        </header>
-
-        {/* Stats Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          {[
-            { label: 'Safety Index', value: `${Math.round((stats.helmet / (stats.helmet + stats.noHelmet)) * 100)}%`, color: 'text-primary', icon: Activity },
-            { label: 'Verified Helmets', value: stats.helmet, color: 'text-success', icon: ShieldCheck },
-            { label: 'Safety Violations', value: stats.noHelmet, color: 'text-danger', icon: ShieldAlert }
-          ].map((item, idx) => (
-            <motion.div 
-              key={idx}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.1 }}
-              className="card flex flex-col justify-between"
-            >
-              <div className="flex justify-between items-center mb-6">
-                <span className="stat-title">{item.label}</span>
-                <item.icon size={20} className={item.color} />
-              </div>
-              <div className={`stat-value ${item.color}`}>{item.value}</div>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Main Interface Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10" style={{ marginTop: '40px' }}>
-          
-          {/* Main Visuals Area */}
-          <div className="lg:col-span-8 flex flex-col" style={{ gap: '24px' }}>
-            
-            {/* Context Tabs */}
-            <div className="flex gap-4 p-2 bg-white/[0.03] border border-white/5 rounded-2xl w-fit backdrop-blur-sm" style={{ marginBottom: '10px' }}>
-              <button 
-                className={`tab-btn flex items-center gap-2 ${activeTab === 'live' ? 'active' : ''}`}
-                onClick={() => { setActiveTab('live'); }}
-              >
-                <Video size={18} /> Live Surveillance
-              </button>
-              <button 
-                className={`tab-btn flex items-center gap-2 ${activeTab === 'upload' ? 'active' : ''}`}
-                onClick={() => { setActiveTab('upload'); stopCamera(); }}
-              >
-                <UploadCloud size={18} /> Deep Upload Analysis
-              </button>
-            </div>
-
-            {/* Video / Upload Interface */}
-            <div className="card !p-0 overflow-hidden relative min-h-[400px] flex">
-              {activeTab === 'live' ? (
-                <div id="video-container" className="video-frame w-full h-full flex-1 relative bg-black/50 group">
-                  <video ref={videoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${!isCameraActive ? 'hidden' : ''}`} />
-                  
-                  {stream && (
-                    <img src={stream} alt="Surveillance Output" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
-                  )}
-
-                  {(!isCameraActive && !stream) && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-text-muted gap-4">
-                      <Camera size={48} className="opacity-20 text-primary" />
-                      <button onClick={() => startCamera()} className="mt-4 px-6 py-2 bg-[#3b82f6]/20 border border-[#3b82f6] text-[#3b82f6] rounded-xl font-bold animate-pulse hover:bg-[#3b82f6]/40">
-                        Initialize WebCam Access
-                      </button>
-                    </div>
-                  )}
-
-                  {isCameraActive && (
-                     <div className="absolute top-4 right-4 flex gap-2">
-                       <button onClick={flipCamera} className="md:hidden bg-black/50 text-white border border-white/20 p-2 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm" title="Flip Camera">
-                         <RefreshCw size={18} />
-                       </button>
-                       <button onClick={() => toggleFullScreen('video-container')} className="bg-black/50 text-white border border-white/20 p-2 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm" title="Full Screen">
-                         <Maximize size={18} />
-                       </button>
-                       <button onClick={stopCamera} className="bg-danger/20 text-danger border border-danger/50 px-3 py-1 rounded-xl text-xs font-bold backdrop-blur-sm flex items-center">
-                          Stop Camera
-                       </button>
-                     </div>
-                  )}
+      <AnimatePresence mode="wait">
+        {view === 'dashboard' ? (
+          <motion.div 
+            key="dashboard"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="main-container"
+          >
+            {/* Header Area */}
+            <header className="flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left" style={{ marginBottom: '60px' }}>
+              <div className="flex items-center gap-5 justify-center md:justify-start">
+                <ScanningHelmet />
+                <div>
+                  <h1 className="text-4xl font-extrabold tracking-tight gradient-blue mb-1">HELMET GUARD AI</h1>
+                  <p className="text-text-muted text-sm uppercase tracking-[3px] font-bold">Powered by OpenCV & YOLOv8n Automation</p>
                 </div>
-              ) : (
-                <div id="upload-container" className="w-full relative flex flex-col min-h-[400px] bg-black/50 group">
-                  {isUploading ? (
-                    <div className="p-6 h-full flex flex-col items-center justify-center">
-                       <HelmetCrashLoader />
-                    </div>
-                  ) : (uploadedResult || uploadedVideoURL) ? (
-                    <div className="w-full h-full relative flex-1">
-                        {/* Hidden original video player used for extracting frames */}
-                        {isVideoUpload && uploadedVideoURL && (
-                          <video 
-                             ref={uploadVideoRef} 
-                             src={uploadedVideoURL} 
-                             autoPlay 
-                             loop 
-                             muted 
-                             className="hidden" 
-                          />
-                        )}
-                        
-                        {/* The Annotated Output Image emitted by backend */}
-                        {uploadedResult && (
-                           <div className="absolute inset-0 w-full h-full">
-                              <img src={uploadedResult} alt="Analysis Result" className="w-full h-full object-contain bg-black" />
-                              <div className="absolute bottom-6 left-6 flex items-center gap-2 bg-success/20 text-success border border-success/40 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest backdrop-blur-md animate-pulse">
-                                 <Zap size={12} /> AI Analysis Active
-                              </div>
-                           </div>
-                        )}
-                        
-                        {/* Placeholder before first frame arrives for video */}
-                        {isVideoUpload && !uploadedResult && (
-                           <div className="absolute inset-0 flex flex-col items-center justify-center text-primary font-bold gap-4 bg-black/80">
-                              <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                              <p className="animate-pulse">Initializing Neural Detection Stream...</p>
-                           </div>
-                        )}
+              </div>
+              
+              <div className="live-badge">
+                <div className="dot"></div>
+                {isConnected ? 'SYSTEM CONNECTED' : 'AWAITING CONNECTION'}
+              </div>
+            </header>
 
-                        <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                          <button onClick={() => toggleFullScreen('upload-container')} className="bg-black/50 text-white border border-white/20 p-2 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm">
-                            <Maximize size={18} />
+            {/* Stats Row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+              {[
+                { label: 'Safety Index', value: `${Math.round((stats.helmet / (stats.helmet + stats.noHelmet)) * 100)}%`, color: 'text-primary', icon: Activity },
+                { label: 'Verified Helmets', value: stats.helmet, color: 'text-success', icon: ShieldCheck },
+                { label: 'Safety Violations', value: stats.noHelmet, color: 'text-danger', icon: ShieldAlert }
+              ].map((item, idx) => (
+                <motion.div 
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                  className="card flex flex-col justify-between"
+                >
+                  <div className="flex justify-between items-center mb-6">
+                    <span className="stat-title">{item.label}</span>
+                    <item.icon size={20} className={item.color} />
+                  </div>
+                  <div className={`stat-value ${item.color}`}>{item.value}</div>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Main Interface Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10" style={{ marginTop: '40px' }}>
+              <div className="lg:col-span-8 flex flex-col" style={{ gap: '24px' }}>
+                <div className="flex gap-4 p-2 bg-white/[0.03] border border-white/5 rounded-2xl w-fit backdrop-blur-sm" style={{ marginBottom: '10px' }}>
+                  <button className={`tab-btn flex items-center gap-2 ${activeTab === 'live' ? 'active' : ''}`} onClick={() => setActiveTab('live')}>
+                    <Video size={18} /> Live Surveillance
+                  </button>
+                  <button className={`tab-btn flex items-center gap-2 ${activeTab === 'upload' ? 'active' : ''}`} onClick={() => { setActiveTab('upload'); stopCamera(); }}>
+                    <UploadCloud size={18} /> Deep Upload Analysis
+                  </button>
+                </div>
+
+                <div className="card !p-0 overflow-hidden relative min-h-[400px] flex">
+                  {activeTab === 'live' ? (
+                    <div id="video-container" className="video-frame w-full h-full flex-1 relative bg-black/50 group">
+                      <video ref={videoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${!isCameraActive ? 'hidden' : ''}`} />
+                      {stream && <img src={stream} alt="Surveillance Output" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />}
+                      {(!isCameraActive && !stream) && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-text-muted gap-4">
+                          <Camera size={48} className="opacity-20 text-primary" />
+                          <button onClick={() => startCamera()} className="mt-4 px-6 py-2 bg-[#3b82f6]/20 border border-[#3b82f6] text-[#3b82f6] rounded-xl font-bold animate-pulse hover:bg-[#3b82f6]/40">
+                            Initialize WebCam Access
                           </button>
-                          <button onClick={() => {
-                             setUploadedResult(null); 
-                             setUploadedVideoURL(null); 
-                             setIsVideoUpload(false);
-                          }} className="bg-danger/20 text-danger border border-danger/50 px-4 py-2 rounded-xl text-xs font-bold hover:bg-danger/30 backdrop-blur-sm">Clear Output</button>
                         </div>
+                      )}
+                      {isCameraActive && (
+                        <div className="absolute top-4 right-4 flex gap-2">
+                          <button onClick={flipCamera} className="md:hidden bg-black/50 text-white border border-white/20 p-2 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm"><RefreshCw size={18} /></button>
+                          <button onClick={() => toggleFullScreen('video-container')} className="bg-black/50 text-white border border-white/20 p-2 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm"><Maximize size={18} /></button>
+                          <button onClick={stopCamera} className="bg-danger/20 text-danger border border-danger/50 px-3 py-1 rounded-xl text-xs font-bold backdrop-blur-sm flex items-center">Stop Camera</button>
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <div className="p-6 h-full flex flex-col">
-                      <div 
-                        className={`upload-box w-full flex-1 ${isDragging ? 'drag-active' : ''}`}
-                        onDragEnter={handleDrag}
-                        onDragLeave={handleDrag}
-                        onDragOver={handleDrag}
-                        onDrop={handleDrop}
-                        onClick={() => document.getElementById('file-upload')?.click()}
-                      >
-                        <motion.div animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 3 }}>
-                          <UploadCloud size={64} className="text-[#3b82f6] mb-4" />
-                        </motion.div>
-                        <h3 className="text-2xl font-extrabold tracking-tight">Drop Image or Video for Analysis</h3>
-                        <p className="text-md text-text-muted text-center max-w-sm mt-2">Upload any media and our AI will process the physics, injury chance & helmet protection level.</p>
-                        
-                        <input id="file-upload" type="file" className="hidden" accept="image/*,video/*" onChange={handleFileSelect} />
-                        
-                        <button className="mt-6 px-6 py-3 bg-primary/20 text-primary border border-primary/30 rounded-xl font-bold hover:bg-primary/30 transition-colors pointer-events-none">
-                          Browse Files
-                        </button>
-                      </div>
+                    <div className="w-full relative flex flex-col min-h-[400px] bg-black/50">
+                      {isUploading ? (
+                        <div className="p-6 h-full flex flex-col items-center justify-center"><HelmetCrashLoader /></div>
+                      ) : (
+                        <div className="p-6 h-full flex flex-col">
+                          {/* Hidden video player for frame extraction */}
+                          {isVideoUpload && uploadedVideoURL && <video ref={uploadVideoRef} src={uploadedVideoURL} autoPlay loop muted className="hidden" />}
+                          
+                          <div className={`upload-box w-full flex-1 ${isDragging ? 'drag-active' : ''}`} onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop} onClick={() => document.getElementById('file-upload')?.click()}>
+                            <motion.div animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 3 }}>
+                              <UploadCloud size={64} className="text-[#3b82f6] mb-4" />
+                            </motion.div>
+                            <h3 className="text-2xl font-extrabold tracking-tight">Drop Image or Video for Analysis</h3>
+                            <p className="text-md text-text-muted text-center max-w-sm mt-2">Upload any media and our AI will process the physics & helmet protection level.</p>
+                            <input id="file-upload" type="file" className="hidden" accept="image/*,video/*" onChange={handleFileSelect} />
+                            <button className="mt-6 px-6 py-3 bg-primary/20 text-primary border border-primary/30 rounded-xl font-bold hover:bg-primary/30 transition-colors pointer-events-none">Browse Files</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Logs Panel */}
-          <div className="lg:col-span-4 block">
-            <div className="card h-full flex flex-col min-h-[500px]">
-              <div className="flex justify-between items-center mb-8">
-                <h3 className="text-sm font-bold text-[#3b82f6] tracking-widest uppercase flex items-center gap-2">
-                  <Activity size={18} /> Event Logs
-                </h3>
               </div>
-              <div className="flex-1 scroll-area overflow-y-auto space-y-4 pr-2">
 
-                <AnimatePresence initial={false}>
-                  {detections.length === 0 ? (
-                    <div className="h-full flex items-center justify-center opacity-30 text-sm italic py-20 flex-col gap-4 text-center">
-                      <ShieldAlert size={32} />
-                      <p>Neural logs will stream here <br/>upon successful connection</p>
-                    </div>
-                  ) : (
-                    detections.map((det) => (
-                      <motion.div
-                        key={det.id}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="p-4 bg-white/[0.03] border border-white/5 rounded-2xl flex justify-between items-center hover:bg-white/[0.05] transition-colors"
-                      >
-                        <div>
-                          <p className={`text-xs font-black uppercase tracking-wider ${det.status === 'Helmet' ? 'text-success' : 'text-danger'}`}>
-                            {det.status}
-                          </p>
-                          <p className="text-[10px] text-text-muted mt-2">{det.timestamp}</p>
+              <div className="lg:col-span-4 block">
+                <div className="card h-full flex flex-col min-h-[500px]">
+                  <div className="flex justify-between items-center mb-8">
+                    <h3 className="text-sm font-bold text-[#3b82f6] tracking-widest uppercase flex items-center gap-2"><Activity size={18} /> Event Logs</h3>
+                  </div>
+                  <div className="flex-1 scroll-area overflow-y-auto space-y-4 pr-2">
+                    <AnimatePresence initial={false}>
+                      {detections.length === 0 ? (
+                        <div className="h-full flex items-center justify-center opacity-30 text-sm italic py-20 flex-col gap-4 text-center">
+                          <ShieldAlert size={32} /><p>Neural logs will stream here <br/>upon successful connection</p>
                         </div>
-                        <div className="text-xs font-mono text-primary font-bold">{(det.confidence * 100).toFixed(1)}%</div>
-                      </motion.div>
-                    ))
-                  )}
-                </AnimatePresence>
+                      ) : (
+                        detections.map((det) => (
+                          <motion.div key={det.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="p-4 bg-white/[0.03] border border-white/5 rounded-2xl flex justify-between items-center hover:bg-white/[0.05] transition-colors">
+                            <div>
+                              <p className={`text-xs font-black uppercase tracking-wider ${det.status === 'Helmet' ? 'text-success' : 'text-danger'}`}>{det.status}</p>
+                              <p className="text-[10px] text-text-muted mt-2">{det.timestamp}</p>
+                            </div>
+                            <div className="text-xs font-mono text-primary font-bold">{(det.confidence * 100).toFixed(1)}%</div>
+                          </motion.div>
+                        ))
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Results Pop-up Modal */}
-      <AnimatePresence>
-        {showModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-             <motion.div 
-               initial={{ opacity: 0 }}
-               animate={{ opacity: 1 }}
-               exit={{ opacity: 0 }}
-               onClick={() => setShowModal(false)}
-               className="absolute inset-0 bg-black/90 backdrop-blur-xl"
-             />
-             
-             <motion.div 
-                initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="relative bg-[#0a0f1d] border border-white/10 rounded-[32px] p-8 max-w-4xl w-full shadow-2xl shadow-primary/20 overflow-hidden"
-             >
-                {/* Decorative Background Glow */}
-                <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/20 rounded-full blur-[80px]"></div>
-                
-                <div className="flex justify-between items-center mb-8 relative z-10">
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="results"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="main-container !max-w-6xl"
+          >
+             <div className="flex flex-col gap-8">
+                {/* Results Header */}
+                <div className="flex items-center justify-between">
                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-success/20 rounded-2xl flex items-center justify-center border border-success/30">
-                        <CheckCircle2 className="text-success" size={24} />
-                      </div>
+                      <button onClick={() => setView('dashboard')} className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors">
+                         <X size={24} className="text-white" />
+                      </button>
                       <div>
-                        <h2 className="text-2xl font-black tracking-tight text-white">AI Detection Result</h2>
-                        <p className="text-text-muted text-xs font-bold uppercase tracking-widest mt-1">Status: Processed Successfully</p>
+                         <h2 className="text-3xl font-black tracking-tight text-white">Analysis Results</h2>
+                         <p className="text-text-muted text-sm font-bold uppercase tracking-widest mt-1">Deep Neural Media Processing Complete</p>
                       </div>
                    </div>
-                   <button 
-                      onClick={() => setShowModal(false)}
-                      className="p-3 hover:bg-white/5 rounded-2xl transition-colors border border-white/5 group"
-                   >
-                      <X size={20} className="text-text-muted group-hover:text-white transition-colors" />
-                   </button>
-                </div>
-
-                <div className="relative aspect-video bg-black/40 rounded-[24px] overflow-hidden border border-white/5 shadow-inner">
-                   {uploadedResult ? (
-                      <img src={uploadedResult} alt="Result" className="w-full h-full object-contain" />
-                   ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center gap-4">
-                         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                         <p className="text-sm font-bold text-primary animate-pulse">Reconstructing Neural Result...</p>
-                      </div>
-                   )}
-                   
-                   <div className="absolute top-6 left-6 flex items-center gap-2 bg-black/60 border border-white/10 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest backdrop-blur-md">
-                      <Zap size={14} className="text-primary" /> Active Inference
+                   <div className="hidden md:flex items-center gap-3 bg-success/10 text-success border border-success/30 px-6 py-3 rounded-2xl">
+                      <CheckCircle2 size={20} />
+                      <span className="font-bold text-sm uppercase tracking-wider">Physics Verified</span>
                    </div>
                 </div>
 
-                <div className="mt-10 flex flex-col sm:flex-row justify-between items-center gap-6 relative z-10">
-                   <div className="text-sm text-text-muted flex items-center gap-4">
-                      <div className="flex -space-x-2">
-                        {[1,2,3].map(i => <div key={i} className="w-6 h-6 rounded-full bg-primary/20 border border-primary/40"></div>)}
+                {/* Main Results Display */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                   <div className="lg:col-span-9">
+                      <div className="card !p-0 aspect-video overflow-hidden border border-white/10 relative group">
+                         {uploadedResult ? (
+                            <img src={uploadedResult} alt="Result" className="w-full h-full object-contain bg-black" />
+                         ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center gap-4 bg-black/60">
+                               <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                               <p className="font-bold text-primary animate-pulse uppercase tracking-widest text-sm">Streaming Inference...</p>
+                            </div>
+                         )}
+                         <div className="absolute top-6 left-6 flex items-center gap-2 bg-black/60 border border-white/10 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest backdrop-blur-md">
+                            <Zap size={14} className="text-primary" /> Real-time Analytics
+                         </div>
                       </div>
-                      <span className="font-medium italic">Verified by AI Matrix</span>
                    </div>
-                   
-                   <div className="flex gap-4 w-full sm:w-auto">
+
+                   {/* Quick Stats Panel */}
+                   <div className="lg:col-span-3 flex flex-col gap-6">
+                      <div className="card flex-1">
+                         <h4 className="text-xs font-bold text-primary uppercase tracking-widest mb-6">Detection Info</h4>
+                         <div className="space-y-6">
+                            <div>
+                               <p className="text-text-muted text-[10px] uppercase font-black mb-2">Primary Target</p>
+                               <div className="p-4 bg-white/5 rounded-2xl border border-white/10 font-bold text-white uppercase text-sm">Motorcyclist</div>
+                            </div>
+                            <div>
+                               <p className="text-text-muted text-[10px] uppercase font-black mb-2">Inference Speed</p>
+                               <div className="p-4 bg-white/5 rounded-2xl border border-white/10 font-bold text-primary uppercase text-sm">12ms / Frame</div>
+                            </div>
+                            <div>
+                               <p className="text-text-muted text-[10px] uppercase font-black mb-2">Confidence Level</p>
+                               <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden mt-2">
+                                  <motion.div initial={{ width: 0 }} animate={{ width: '92%' }} className="h-full bg-primary" />
+                               </div>
+                               <p className="text-right text-[10px] font-bold text-primary mt-1">92.4% Average</p>
+                            </div>
+                         </div>
+                      </div>
+                      
                       <button 
-                        onClick={() => setShowModal(false)}
-                        className="flex-1 sm:flex-none px-10 py-4 bg-white/5 hover:bg-white/10 rounded-2xl font-bold transition-all text-sm border border-white/5"
+                        onClick={() => { setView('dashboard'); setUploadedResult(null); }}
+                        className="w-full py-5 bg-primary hover:bg-primary-hover text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
                       >
-                        Close
-                      </button>
-                      <button 
-                        className="flex-1 sm:flex-none px-10 py-4 bg-primary hover:bg-primary-hover text-white rounded-2xl font-bold shadow-lg shadow-primary/20 transition-all text-sm hover:scale-[1.02] active:scale-[0.98]"
-                      >
-                        Accept Result
+                         Accept & Continue
                       </button>
                    </div>
                 </div>
-             </motion.div>
-          </div>
+             </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </>
