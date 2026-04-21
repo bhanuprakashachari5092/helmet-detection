@@ -314,7 +314,7 @@ function App() {
             <ScanningHelmet />
             <div>
               <h1 className="text-4xl font-extrabold tracking-tight gradient-blue mb-1">HELMET GUARD AI</h1>
-              <p className="text-text-muted text-sm uppercase tracking-[3px] font-bold">Neural Security Matrix</p>
+              <p className="text-text-muted text-sm uppercase tracking-[3px] font-bold">Powered by OpenCV & YOLOv8n Automation</p>
             </div>
           </div>
           
